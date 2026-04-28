@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VoiceGuard — Deepfake Voice Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --text-main: #1e293b;
+  --text-subtle: #64748b;
+  --text-dim: #94a3b8;
+  --purple: #6366f1;
+  --purple-bg: #eef2ff;
+  --real: #10b981;
+  --real-bg: #ecfdf5;
+  --fake: #ef4444;
+  --fake-bg: #fef2f2;
+  --amber: #f59e0b;
+  --amber-bg: #fffbeb;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius: 8px;
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logomark {
+  width: 32px;
+  height: 32px;
+  background: var(--purple-bg);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logomark svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--purple);
+  fill: none;
+  stroke-width: 2;
+}
+
+.logoname {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.logoname b { color: var(--purple); }
+
+.hright { display: flex; align-items: center; gap: 8px; }
+
+.chip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-subtle);
+}
+
+.livdot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--real);
+}
+
+.mbadge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  color: var(--purple);
+  background: var(--purple-bg);
+  font-weight: 500;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media(max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.clabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.dz {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 32px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-subtle);
+}
+
+.dz:hover { border-color: var(--purple); background: var(--purple-bg); }
+
+.dzicon {
+  width: 40px;
+  height: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.dzicon svg { width: 20px; height: 20px; stroke: var(--purple); fill: none; stroke-width: 2; }
+
+.dztitle { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.dzsub { font-size: 12px; color: var(--text-subtle); line-height: 1.5; }
+
+.div {
+  text-align: center;
+  margin: 16px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  position: relative;
+}
+
+.div::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 0; right: 0;
+  height: 1px; background: var(--border);
+  z-index: 0;
+}
+
+.div span {
+  position: relative;
+  background: var(--bg-card);
+  padding: 0 12px;
+  z-index: 1;
+}
+
+.btn {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-g { background: var(--bg-subtle); color: var(--text-main); border-color: var(--border); }
+.btn-g:hover:not(:disabled) { background: #e2e8f0; }
+
+.btn-p { background: var(--purple); color: white; margin-top: 16px; }
+.btn-p:hover:not(:disabled) { background: #4f46e5; }
+
+.queue { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.qi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.qn { flex: 1; color: var(--text-main); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.qs { color: var(--text-subtle); }
+.qx { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 4px; border-radius: 4px; }
+.qx:hover { color: var(--fake); background: var(--fake-bg); }
+
+.sb { font-size: 12px; color: var(--text-subtle); margin-top: 12px; display: flex; align-items: center; gap: 8px; }
+
+.ww {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 12px;
+  background: var(--bg-subtle);
+  padding: 0 16px;
+  border-radius: 6px;
+}
+
+.wb { width: 3px; background: var(--border); border-radius: 2px; transition: all 0.3s; }
+.wb.act { background: var(--purple); }
+.wb.rl { background: var(--real); }
+.wb.fk { background: var(--fake); }
+
+.wmeta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-subtle); }
+
+.vrow { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.vpill {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.vi { background: var(--bg-subtle); color: var(--text-dim); }
+.vr { background: var(--real-bg); color: var(--real); }
+.vf { background: var(--fake-bg); color: var(--fake); }
+.ve { background: var(--amber-bg); color: var(--amber); }
+
+.vsub { font-size: 14px; color: var(--text-subtle); font-weight: 500; }
+
+.shd { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; font-weight: 500; }
+.shd .l { color: var(--text-subtle); }
+.shd .v { color: var(--text-main); }
+
+.trk { height: 8px; background: var(--bg-subtle); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.fill { height: 100%; transition: width 0.8s ease-out; }
+.rfill { background: var(--real); }
+.ffill { background: var(--fake); }
+
+.send { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); font-weight: 500; }
+
+.mg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+.mb { background: var(--bg-subtle); border-radius: 8px; padding: 16px 12px; text-align: center; }
+.mv { font-size: 18px; font-weight: 700; color: var(--purple); margin-bottom: 4px; }
+.ml { font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.btw { padding: 0 !important; }
+.bh { padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.bt { font-size: 12px; font-weight: 700; color: var(--text-main); }
+.bc { font-size: 12px; color: var(--purple); font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg-subtle); }
+td { padding: 12px 24px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-main); }
+tr:last-child td { border-bottom: none; }
+
+.pill { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+.pr { background: var(--real-bg); color: var(--real); }
+.pf { background: var(--fake-bg); color: var(--fake); }
+.pe { background: var(--amber-bg); color: var(--amber); }
+
+.hl { list-style: none; }
+.hi { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--border); }
+.hi:last-child { border-bottom: none; }
+.hd { width: 8px; height: 8px; border-radius: 50%; }
+.hn { flex: 1; font-size: 13px; font-weight: 500; }
+.hs { font-size: 12px; font-weight: 600; }
+.ht { font-size: 12px; color: var(--text-dim); }
+
+.empty { padding: 32px; text-align: center; color: var(--text-dim); font-size: 14px; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ── Explainability ─────────────────────────────────────────── */
+.xcard { display: none; }
+.xcard.visible { display: block; }
+
+.xtabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.xtab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text-subtle);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.xtab:hover { color: var(--text-main); }
+.xtab.active { color: var(--purple); border-bottom-color: var(--purple); }
+
+.xpanel { display: none; }
+.xpanel.active { display: block; }
+
+.xchart-wrap {
+  position: relative;
+  height: 120px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.xchart-wrap canvas { display: block; width: 100% !important; height: 120px !important; }
+
+.xleg { display: flex; gap: 16px; font-size: 11px; color: var(--text-subtle); margin-bottom: 16px; flex-wrap: wrap; }
+.xleg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+.xcam-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  margin-bottom: 8px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  padding: 10px;
+}
+.xcam-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  position: relative;
+}
+.xcam-val {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; color: white;
+  text-shadow: 0 0 4px rgba(0,0,0,.5);
+}
+
+.xattn-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 3px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+.xaxis-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.xfinding {
+  background: var(--purple-bg);
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--purple);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+.xfinding b { font-weight: 700; }
+
+.xloading {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.xspin {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Farmer Animations ─────────────────────────────────────── */
+.farmer-scene {
+  height: 300px;
+  background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%);
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sun {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background: #ffd700;
+  border-radius: 50%;
+  box-shadow: 0 0 30px rgba(255,215,0,0.5);
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.cloud {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  animation: drift 8s linear infinite;
+}
+
+.cloud-1 {
+  top: 40px;
+  left: -100px;
+  width: 80px;
+  height: 30px;
+  animation-delay: 0s;
+}
+
+.cloud::before {
+  content: '';
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  top: -15px;
+  left: 15px;
+}
+
+@keyframes drift {
+  0% { transform: translateX(-100px); }
+  100% { transform: translateX(calc(100vw + 100px)); }
+}
+
+.ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(180deg, #90ee90 0%, #7cb342 100%);
+}
+
+.farmer {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: wave 1.5s ease-in-out infinite;
+}
+
+@keyframes wave {
+  0%, 100% { transform: translateX(-50%) rotateZ(0deg); }
+  25% { transform: translateX(-50%) rotateZ(-5deg); }
+  75% { transform: translateX(-50%) rotateZ(5deg); }
+}
+
+.farmer-head {
+  width: 40px;
+  height: 40px;
+  background: #f4a460;
+  border-radius: 50%;
+  position: relative;
+  margin: 0 auto;
+}
+
+.farmer-hat {
+  width: 50px;
+  height: 20px;
+  background: #8b4513;
+  border-radius: 50% 50% 0 0;
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: inset 0 2px 0 rgba(0,0,0,0.2);
+}
+
+.farmer-body {
+  width: 35px;
+  height: 45px;
+  background: #4169e1;
+  margin: 0 auto;
+  border-radius: 4px;
+  position: relative;
+  top: 0;
+}
+
+.farmer-arm {
+  position: absolute;
+  width: 12px;
+  height: 40px;
+  background: #f4a460;
+  border-radius: 6px;
+  animation: swing 1s ease-in-out infinite;
+}
+
+.farmer-arm-left {
+  left: -8px;
+  top: 10px;
+  animation-direction: reverse;
+}
+
+.farmer-arm-right {
+  right: -8px;
+  top: 10px;
+  transform-origin: top center;
+}
+
+@keyframes swing {
+  0%, 100% { transform: rotateZ(-30deg); }
+  50% { transform: rotateZ(30deg); }
+}
+
+.farmer-leg {
+  position: absolute;
+  width: 10px;
+  height: 35px;
+  background: #333;
+  border-radius: 5px;
+}
+
+.farmer-leg-left {
+  left: 5px;
+  bottom: -25px;
+  animation: legWalk 1s ease-in-out infinite;
+}
+
+.farmer-leg-right {
+  right: 5px;
+  bottom: -25px;
+  animation: legWalk 1s ease-in-out infinite 0.5s;
+}
+
+@keyframes legWalk {
+  0%, 100% { transform: rotateZ(-10deg); }
+  50% { transform: rotateZ(10deg); }
+}
+
+.crops {
+  position: absolute;
+  bottom: 80px;
+  display: flex;
+  gap: 15px;
+  width: 100%;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.crop {
+  width: 30px;
+  height: 60px;
+  position: relative;
+  animation: sway 2s ease-in-out infinite;
+}
+
+.crop:nth-child(1) { animation-delay: 0s; }
+.crop:nth-child(2) { animation-delay: 0.3s; }
+.crop:nth-child(3) { animation-delay: 0.6s; }
+.crop:nth-child(4) { animation-delay: 0.9s; }
+.crop:nth-child(5) { animation-delay: 1.2s; }
+
+@keyframes sway {
+  0%, 100% { transform: rotateZ(0deg); }
+  50% { transform: rotateZ(8deg); }
+}
+
+.crop-stem {
+  width: 3px;
+  height: 50px;
+  background: #228b22;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-1.5px);
+  transform-origin: bottom;
+}
+
+.crop-leaf {
+  width: 6px;
+  height: 12px;
+  background: #32cd32;
+  position: absolute;
+  border-radius: 50% 0;
+  left: 50%;
+}
+
+.crop-leaf-1 {
+  top: 15px;
+  transform: translateX(-3px) rotateZ(-35deg);
+}
+
+.crop-leaf-2 {
+  top: 25px;
+  transform: translateX(-3px) rotateZ(35deg);
+}
+
+.crop-leaf-3 {
+  top: 40px;
+  transform: translateX(-3px) rotateZ(-30deg);
+}
+
+.crop-leaf-4 {
+  top: 50px;
+  transform: translateX(-3px) rotateZ(25deg);
+}
+
+.harvest-msg {
+  position: absolute;
+  bottom: 160px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--purple);
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-30px); }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logomark">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="logoname">Voice<b>Guard</b></div>
+  </div>
+  <div class="hright">
+    <div class="chip"><div class="livdot"></div><span id="sys-status">Loading…</span></div>
+    <div class="mbadge" id="model-badge">TL-v2 · AUC 0.9827</div>
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- LEFT: INPUT -->
+  <div>
+    <div class="card">
+      <div class="clabel">Audio input</div>
+
+      <div class="dz" id="dz">
+        <input type="file" id="fi" multiple accept=".wav,.flac,.mp3,.ogg,.m4a,.aac,.webm">
+        <div class="dzicon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        </div>
+        <div class="dztitle">Drop audio files here</div>
+        <div class="dzsub">.wav · .flac · .mp3 · .ogg · .m4a<br>Up to 50 MB · batch upload supported</div>
+      </div>
+
+      <div class="queue" id="queue"></div>
+
+      <button class="btn btn-p" id="abtn" onclick="analyze()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Analyze
+      </button>
+
+      <div class="sb" id="sb"><span id="stxt">ready — drop files or record audio</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: RESULTS -->
+  <div class="rcol">
+
+    <!-- Waveform -->
+    <div class="card" style="padding:18px 20px">
+      <div class="clabel">Spectrogram energy</div>
+      <div class="ww" id="ww"></div>
+      <div class="wmeta"><span id="wfn">—</span><span id="wdur">—</span></div>
+    </div>
+
+    <!-- Farmer Scene -->
+    <div class="card" style="padding:0;border:none;background:transparent;box-shadow:none">
+      <div class="farmer-scene">
+        <!-- Sky elements -->
+        <div class="sun"></div>
+        <div class="cloud cloud-1"></div>
+        
+        <!-- Crops -->
+        <div class="crops">
+          <div class="crop">
+            <div class="crop-stem"></div>
+            <div class="crop-leaf crop-leaf-1"></div>
+            <div class="crop-leaf crop-leaf-2"></div>
+            <div class="crop-leaf crop-leaf-3"></div>
+            <div class="crop-leaf crop-leaf-4"></div>
+          </div>
+          <div class="crop">
+            <div class="crop-stem"></div>
+            <div class="crop-leaf crop-leaf-1"></div>
+            <div class="crop-leaf crop-leaf-2"></div>
+            <div class="crop-leaf crop-leaf-3"></div>
+            <div class="crop-leaf crop-leaf-4"></div>
+          </div>
+          <div class="crop">
+            <div class="crop-stem"></div>
+            <div class="crop-leaf crop-leaf-1"></div>
+            <div class="crop-leaf crop-leaf-2"></div>
+            <div class="crop-leaf crop-leaf-3"></div>
+            <div class="crop-leaf crop-leaf-4"></div>
+          </div>
+          <div class="crop">
+            <div class="crop-stem"></div>
+            <div class="crop-leaf crop-leaf-1"></div>
+            <div class="crop-leaf crop-leaf-2"></div>
+            <div class="crop-leaf crop-leaf-3"></div>
+            <div class="crop-leaf crop-leaf-4"></div>
+          </div>
+          <div class="crop">
+            <div class="crop-stem"></div>
+            <div class="crop-leaf crop-leaf-1"></div>
+            <div class="crop-leaf crop-leaf-2"></div>
+            <div class="crop-leaf crop-leaf-3"></div>
+            <div class="crop-leaf crop-leaf-4"></div>
+          </div>
+        </div>
+        
+        <!-- Farmer -->
+        <div class="farmer">
+          <div class="farmer-head">
+            <div class="farmer-hat"></div>
+          </div>
+          <div class="farmer-body">
+            <div class="farmer-arm farmer-arm-left"></div>
+            <div class="farmer-arm farmer-arm-right"></div>
+            <div class="farmer-leg farmer-leg-left"></div>
+            <div class="farmer-leg farmer-leg-right"></div>
+          </div>
+        </div>
+        
+        <!-- Ground -->
+        <div class="ground"></div>
+        
+        <!-- Harvest message -->
+        <div class="harvest-msg">🌾</div>
+      </div>
+    </div>
+
+    <!-- Batch -->
+    <div class="card btw" id="bcard" style="display:none">
+      <div class="bh"><span class="bt">Batch results</span><span class="bc" id="bcnt"></span></div>
+      <table><thead><tr><th>Filename</th><th>Verdict</th><th>P(real)</th><th>Score</th><th>Time</th></tr></thead>
+      <tbody id="btb"></tbody></table>
+    </div>
+
+    <!-- History -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="bh"><span class="bt">Detection history</span><span class="bc" id="hcnt">0 sessions</span></div>
+      <ul class="hl" id="hl"><li class="empty">No detections yet</li></ul>
+    </div>
+
+    <!-- Explainability -->
+    <div class="card xcard" id="xcard">
+      <div class="clabel">🔍 Explainability — Grad-CAM Analysis</div>
+
+      <div class="xtabs">
+        <button class="xtab active" onclick="xTab('freq')">Frequency Activation</button>
+        <button class="xtab" onclick="xTab('time')">Temporal Activation</button>
+        <button class="xtab" onclick="xTab('cam')">CAM Heatmap</button>
+        <button class="xtab" onclick="xTab('attn')">Attention Grid</button>
+      </div>
+
+      <div id="xloading" class="xloading" style="display:none">
+        <div class="xspin"></div>Computing explanation…
+      </div>
+
+      <!-- Freq panel -->
+      <div class="xpanel active" id="xp-freq">
+        <div class="xaxis-labels"><span>0 Hz</span><span>2 kHz</span><span>4 kHz</span><span>6 kHz</span><span>8 kHz</span></div>
+        <div class="xchart-wrap"><canvas id="xc-freq"></canvas></div>
+        <div class="xleg">
+          <span><span class="xleg-dot" style="background:#6366f1"></span>Model attention across frequency bands</span>
+        </div>
+        <div class="xfinding" id="xf-freq">Run analysis to see frequency findings.</div>
+      </div>
+
+      <!-- Time panel -->
+      <div class="xpanel" id="xp-time">
+        <div class="xaxis-labels"><span>0s</span><span>0.75s</span><span>1.5s</span><span>2.25s</span><span>3.0s</span></div>
+        <div class="xchart-wrap"><canvas id="xc-time"></canvas></div>
+        <div class="xleg">
+          <span><span class="xleg-dot" style="background:#6366f1"></span>Model attention across time frames</span>
+        </div>
+        <div class="xfinding" id="xf-time">Run analysis to see temporal findings.</div>
+      </div>
+
+      <!-- CAM panel -->
+      <div class="xpanel" id="xp-cam">
+        <div class="xcam-grid" id="xcam-grid"></div>
+        <div class="xleg">
+          <span><span class="xleg-dot" style="background:#ef4444"></span>High activation</span>
+          <span><span class="xleg-dot" style="background:#fef2f2"></span>Low activation</span>
+        </div>
+        <div class="xfinding">4×4 spatial Grad-CAM map — each cell covers a time–frequency region. Brighter = stronger model focus.</div>
+      </div>
+
+      <!-- Attention panel -->
+      <div class="xpanel" id="xp-attn">
+        <div class="xattn-grid" id="xattn-grid"></div>
+        <div class="xleg">
+          <span><span class="xleg-dot" style="background:#6366f1"></span>High attention weight</span>
+          <span><span class="xleg-dot" style="background:#eef2ff"></span>Low attention weight</span>
+        </div>
+        <div class="xfinding">AttentionPool2d spatial weights — where the model concentrates when pooling features. Rows = frequency bands, Cols = time segments.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+const S={files:[],history:[],busy:false};
+const N=54;
+const $=id=>document.getElementById(id);
+
+// Build waveform
+function buildWave(){
+  $('ww').innerHTML='';
+  for(let i=0;i<N;i++){
+    const b=document.createElement('div');b.className='wb';
+    b.style.height=Math.max(5,Math.abs(Math.sin(i*.44)*22+Math.sin(i*.9)*13+6))+'px';
+    $('ww').appendChild(b);
+  }
+}
+buildWave();
+
+function setWave(data,cls){
+  [...$('ww').querySelectorAll('.wb')].forEach((b,i)=>{
+    b.className='wb'+(cls?' '+cls:'');
+    b.style.height=(data&&data[i]!==undefined?Math.max(4,data[i]*68):Math.max(5,Math.abs(Math.sin(i*.44)*22+6)))+'px';
+  });
+}
+
+let wai=null;
+function startWave(){
+  let f=0;
+  wai=setInterval(()=>{
+    [...$('ww').querySelectorAll('.wb')].forEach((b,i)=>{
+      b.style.height=Math.max(4,Math.abs(Math.sin(i*.44+f*.12)*22+Math.sin(i*.88+f*.09)*12+5))+'px';
+    });f++;
+  },55);
+}
+function stopWave(){clearInterval(wai);wai=null}
+
+// Fetch model info
+async function fetchInfo(){
+  try{
+    const r=await fetch('/health');const d=await r.json();
+    $('sys-status').textContent=d.model==='loaded'?'System online':'Demo mode';
+  }catch(e){$('sys-status').textContent='Offline'}
+}
+fetchInfo();
+
+// Drag & drop
+const dz=$('dz'),fi=$('fi');
+dz.onclick=()=>fi.click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('over')};
+dz.ondragleave=()=>dz.classList.remove('over');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('over');add([...e.dataTransfer.files])};
+fi.onchange=()=>{add([...fi.files]);fi.value=''};
+
+const OK=new Set(['.wav','.flac','.mp3','.ogg','.m4a','.aac','.webm']);
+function add(files){
+  files.forEach(f=>{
+    const ext='.'+f.name.split('.').pop().toLowerCase();
+    if(!OK.has(ext)){setS(`❌ ${f.name}: unsupported format`);return}
+    if(f.size>50*1024*1024){setS(`❌ ${f.name}: too large`);return}
+    if(!S.files.find(x=>x.name===f.name&&x.size===f.size))S.files.push(f);
+  });
+  renderQ();
+}
+function rmFile(i){S.files.splice(i,1);renderQ()}
+function renderQ(){
+  $('queue').innerHTML='';
+  S.files.forEach((f,i)=>{
+    const d=document.createElement('div');d.className='qi';
+    d.innerHTML=`<span class="qn">${f.name}</span><span class="qs">${(f.size/1024).toFixed(0)}KB</span><button class="qx" onclick="rmFile(${i})">✕</button>`;
+    $('queue').appendChild(d);
+  });
+  $('abtn').disabled=S.files.length===0||S.busy;
+  setS(S.files.length>0?`${S.files.length} file${S.files.length>1?'s':''} queued`:'ready — drop audio files');
+}
+
+// Analyze
+async function analyze(){
+  if(!S.files.length||S.busy)return;
+  S.busy=true;$('abtn').disabled=true;
+  resetResult();$('bcard').style.display='none';
+  setS('',true);startWave();
+  $('wfn').textContent=S.files.length>1?`${S.files.length} files`:S.files[0].name;
+  $('wdur').textContent='analyzing…';
+
+  try{
+    const fd=new FormData();
+    S.files.forEach(f=>fd.append('files',f));
+    const res=await fetch('/predict',{method:'POST',body:fd});
+    stopWave();
+    if(!res.ok)throw new Error(`Server error ${res.status}`);
+    const results=await res.json();
+    $('wdur').textContent=`${results.reduce((a,r)=>a+r.inference_ms,0)}ms total`;
+
+    if(S.files.length>1){$('bcard').style.display='';renderBatch(results)}
+    const first=results.find(r=>r.label!=='ERROR')||results[0];
+    if(first)showResult(first);
+    addHist(results);
+    setS('✓ Analysis complete');
+
+    // Trigger explainability for first valid file
+    const validFile = S.files.find((_,i)=>results[i]&&results[i].label!=='ERROR');
+    if(validFile) fetchExplain(validFile);
+
+  }catch(e){
+    stopWave();buildWave();setS(`❌ ${e.message}`);
+  }
+  S.busy=false;$('abtn').disabled=S.files.length===0;
+}
+
+function resetResult(){
+  // Detection result card removed - replaced with farmer scene
+  // const vp = $('vp'); if(vp) vp.className='vpill vi'; if(vp) vp.textContent='Awaiting';
+  // Farmer scene is now decorative only
+}
+
+function showResult(r){
+  // Detection result card removed - replaced with farmer scene
+  // Results are now only shown in batch/history
+  if(r.label==='ERROR'){
+    // Error handling removed - see history
+    return;
+  }
+}
+
+function renderBatch(results){
+  $('bcnt').textContent=`${results.length} files`;
+  $('btb').innerHTML='';
+  results.forEach(r=>{
+    const isReal=r.label==='REAL',isErr=r.label==='ERROR';
+    const pct=isErr?0:Math.round(r.probability*100);
+    const pc=isErr?'pe':(isReal?'pr':'pf');
+    const fc=isReal?'var(--real)':'var(--fake)';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="tn">${r.filename}</td>
+      <td><span class="pill ${pc}">${isErr?'ERROR':(isReal?'REAL':'FAKE')}</span></td>
+      <td style="color:${isErr?'var(--t3)':fc}">${isErr?'—':pct+'%'}</td>
+      <td><div class="bm"><div class="bmf" style="width:${pct}%;background:${fc}"></div></div></td>
+      <td>${isErr?'—':r.inference_ms+'ms'}</td>`;
+    $('btb').appendChild(tr);
+  });
+}
+
+function addHist(results){
+  const valid=results.filter(r=>r.label!=='ERROR');
+  if(!valid.length)return;
+  S.history.unshift({files:valid,time:new Date(),
+    isReal:valid.length===1?valid[0].label==='REAL':null,
+    label:valid.length===1?valid[0].label:`${valid.filter(r=>r.label==='FAKE').length}/${valid.length} fake`});
+  if(S.history.length>20)S.history.pop();
+  renderHist();
+}
+
+function renderHist(){
+  if(!S.history.length){
+    $('hl').innerHTML='<li class="empty">No detections yet</li>';
+    $('hcnt').textContent='0 sessions';return;
+  }
+  $('hcnt').textContent=`${S.history.length} session${S.history.length>1?'s':''}`;
+  $('hl').innerHTML='';
+  S.history.forEach(e=>{
+    const col=e.isReal===true?'var(--real)':e.isReal===false?'var(--fake)':'var(--purple)';
+    const name=e.files.length===1?e.files[0].filename:`${e.files.length} files`;
+    const score=e.files.length===1?Math.round(e.files[0].confidence*100)+'% '+e.files[0].label.toLowerCase():e.label;
+    const li=document.createElement('li');li.className='hi';
+    li.innerHTML=`<div class="hd" style="background:${col};box-shadow:0 0 5px ${col}"></div>
+      <div class="hn">${name}</div><div class="hs" style="color:${col}">${score}</div>
+      <div class="ht">${timeAgo(e.time)}</div>`;
+    $('hl').appendChild(li);
+  });
+}
+
+function timeAgo(d){
+  const s=Math.round((Date.now()-d)/1000);
+  if(s<5)return'just now';if(s<60)return s+'s ago';
+  if(s<3600)return Math.floor(s/60)+'m ago';return Math.floor(s/3600)+'h ago';
+}
+
+function setS(msg,loading=false){
+  $('sb').innerHTML=loading
+    ?`<div class="spin"></div><span>${msg||'analyzing…'}</span>`
+    :`<span>${msg}</span>`;
+}
+
+/* ── Explainability ─────────────────────────────────────── */
+let xData = null;
+let xActiveTab = 'freq';
+
+function xTab(name){
+  xActiveTab = name;
+  document.querySelectorAll('.xtab').forEach((t,i)=>{
+    t.classList.toggle('active', ['freq','time','cam','attn'][i]===name);
+  });
+  document.querySelectorAll('.xpanel').forEach(p=>p.classList.remove('active'));
+  $('xp-'+name).classList.add('active');
+}
+
+async function fetchExplain(file){
+  const xcard = $('xcard');
+  xcard.classList.add('visible');
+  $('xloading').style.display='block';
+  document.querySelectorAll('.xpanel').forEach(p=>p.style.opacity='0.3');
+
+  try{
+    const fd=new FormData();
+    fd.append('files', file);
+    const res=await fetch('/explain',{method:'POST',body:fd});
+    if(!res.ok) throw new Error('explain failed');
+    xData = await res.json();
+    renderExplain(xData);
+  }catch(e){
+    $('xloading').textContent='⚠️ Explanation unavailable';
+  }
+  $('xloading').style.display='none';
+  document.querySelectorAll('.xpanel').forEach(p=>p.style.opacity='1');
+}
+
+function renderExplain(d){
+  if(!d) return;
+  drawBarChart('xc-freq', d.freq_profile, '#6366f1', 'rgba(99,102,241,0.15)');
+  drawBarChart('xc-time', d.time_profile, '#6366f1', 'rgba(99,102,241,0.15)');
+  drawCamGrid('xcam-grid', d.cam_4x4);
+  if(d.attn_grid) drawCamGrid('xattn-grid', d.attn_grid, '#6366f1');
+
+  // Finding text
+  const fp = d.freq_profile;
+  const peakBin = fp.indexOf(Math.max(...fp));
+  const peakHz = Math.round(peakBin / 64 * 8000);
+  const isReal = d.label === 'REAL';
+  const lowAvg = fp.slice(0,21).reduce((a,b)=>a+b,0)/21;
+  const midAvg = fp.slice(21,42).reduce((a,b)=>a+b,0)/21;
+  const hiAvg  = fp.slice(42).reduce((a,b)=>a+b,0)/22;
+  const dominant = lowAvg>=midAvg&&lowAvg>=hiAvg?'low (0–2.5kHz)':midAvg>=hiAvg?'mid (2.5–5kHz)':'high (5–8kHz)';
+
+  $('xf-freq').innerHTML = isReal
+    ? `<b>Real voice pattern:</b> Peak model attention at ~${peakHz} Hz. Dominant band: <b>${dominant}</b>. Real human voices show natural harmonic energy concentrated in lower-mid frequencies.`
+    : `<b>Deepfake pattern detected:</b> Peak model attention at ~${peakHz} Hz. Dominant band: <b>${dominant}</b>. TTS synthesis artifacts often appear in high-frequency bands where vocoders over-smooth harmonics.`;
+
+  const tp = d.time_profile;
+  const tPeak = tp.indexOf(Math.max(...tp));
+  const tPeakSec = (tPeak / 64 * 3.0).toFixed(2);
+  const tVar = tp.reduce((a,b)=>a+(b-tp.reduce((x,y)=>x+y)/tp.length)**2,0)/tp.length;
+  $('xf-time').innerHTML = isReal
+    ? `<b>Real voice pattern:</b> Consistent attention across the clip. Peak at ~${tPeakSec}s. Low temporal variance (${tVar.toFixed(3)}) indicates stable phoneme-level features.`
+    : `<b>Deepfake pattern detected:</b> Model focuses around ${tPeakSec}s. Temporal variance: ${tVar.toFixed(3)}. Synthesized speech may show uneven prosody that the model exploits.`;
+}
+
+function drawBarChart(canvasId, data, color, fill){
+  const canvas = $(canvasId);
+  if(!canvas) return;
+  const W = canvas.parentElement.offsetWidth || 400;
+  const H = 120;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const pad = 4;
+  const bw  = (W - pad*(data.length+1)) / data.length;
+
+  // Fill area
+  ctx.beginPath();
+  ctx.moveTo(pad, H-4);
+  data.forEach((v,i)=>{
+    const x = pad + i*(bw+pad) + bw/2;
+    const y = H - 4 - v*(H-16);
+    i===0 ? ctx.lineTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.lineTo(W-pad, H-4);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+
+  // Bars
+  data.forEach((v,i)=>{
+    const x = pad + i*(bw+pad);
+    const h = Math.max(2, v*(H-16));
+    const y = H - 4 - h;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.5 + v*0.5;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x,y,bw,h,2) : ctx.rect(x,y,bw,h);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function camColor(v, hue){
+  // hue: 0=red (fake/cam), 240=blue (attn)
+  const h = hue || 0;
+  const s = 80;
+  const l = 95 - v*65;
+  return `hsl(${h},${s}%,${l}%)`;
+}
+
+function drawCamGrid(id, grid, hue){
+  const el = $(id);
+  if(!el) return;
+  el.innerHTML = '';
+  const flat = grid.flat();
+  const mx = Math.max(...flat) || 1;
+  grid.forEach((row, ri)=>{
+    row.forEach((val, ci)=>{
+      const n = val / mx;
+      const cell = document.createElement('div');
+      cell.className = 'xcam-cell';
+      cell.style.background = camColor(n, hue||0);
+      const lbl = document.createElement('div');
+      lbl.className = 'xcam-val';
+      lbl.textContent = n.toFixed(2);
+      lbl.style.color = n > 0.6 ? 'white' : '#64748b';
+      cell.appendChild(lbl);
+      el.appendChild(cell);
+    });
+  });
+}
+</script>
+</body>
+</html>
